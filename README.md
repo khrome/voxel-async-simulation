@@ -15,16 +15,22 @@ Here is a reimplementation of [voxel-hello-world](https://github.com/maxogden/vo
 
 	var MyGame = new Simulation({
 	    chunkLoader : function(placeholderChunk, complete){
-	        var url = '/chunk/'+placeholderChunk.position[0]+'/'+
-	            +placeholderChunk.position[1]+'/'+placeholderChunk.position[2];
+	        var url = '/chunk/'+
+				placeholderChunk.position[0]+'/'+
+	            placeholderChunk.position[1]+'/'+
+				placeholderChunk.position[2];
 	        request({
 	            uri :url,
 	            json : true
 	        }, function(err, response, data){
 	            if(err) throw(err);
-	            if(data.error) throw(new Error(data.message || (
-	                typeof data.error == 'boolean'?'Error requesting url:'+url:data.error
-	            )));
+	            if(data.error) throw(new Error(
+					data.message || (
+		                typeof data.error == 'boolean'?
+							'Error requesting url:'+url:
+							data.error
+		            )
+				));
 	            var results = new Int8Array(32*32*32);
 	            var blocks = data.blocks;
 	            for(var lcv=0; lcv<results.length; lcv++){
