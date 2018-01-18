@@ -1,0 +1,38 @@
+{
+    "name": "voxel-async-simulation",
+    "homepage": "https://github.com/khrome/voxel-async-simulation",
+    "version": "0.0.1",
+    "main": "voxel-simulation-async.js",
+    "description": "Load voxel.js chunks asynchronously from a server",
+    "keywords": [
+        "voxel.js",
+        "voxel",
+        "minecraft"
+    ],
+    "author": "Abbey Hawk Sparrow <@khrome> (http://patternweaver.com)",
+    "contributors": [],
+    "bugs": {
+        "url": "https://github.com/khrome/voxel-async-simulation/issues"
+    },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/khrome/voxel-async-simulation.git"
+    },
+    "dependencies": {
+        "voxel-engine": "*",
+        "voxel-highlight": "*",
+        "voxel-player" : "*",
+        "voxel-fly" : "*",
+        "voxel-walk" : "git://github.com/flyswatter/voxel-walk.git",
+        "voxel" : "*",
+        "extend" : "*",
+        "express" : "*",
+        "extended-emitter" : "*"
+    },
+    "devDependencies": {},
+    "optionalDependencies": {},
+    "engines": {
+        "node": "*"
+    }
+}
