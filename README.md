@@ -1,69 +1,67 @@
 VoxelSimulation
 ===============
 
-Experimental!
+Things got much better... it may even be useful now. There are two things this package provides:
+- A simple server based loading abstraction
+- chunk referencing when generating (which will soon manifest in a biome abstraction)
 
-Not much here yet!
+This means you provide a generator function factory on the server:
+
+    function(chunkX, chunkY, chunkZ){
+        //chunk specific work here
+        return function(x, y, z){
+            //voxel specific work here
+        }
+    }
 
 Usage
 -----
 
-Here is a reimplementation of [voxel-hello-world](https://github.com/maxogden/voxel-hello-world), but it loads materials based on what it finds in the texture pack and has a different terrain loader (that runs on the server).
+There is a reimagining of [voxel-hello-world](https://github.com/maxogden/voxel-hello-world), that loads materials based on what it finds in the texture pack and has a different terrain loader (that runs on the server). Check out the source of the [example-client](https://github.com/khrome/voxel-async-simulation/example-client.js). Make sure to either change the client or to name your texturePack `'PhotoRealistic'` so you can use the client with the textures you are about to download.
 
-    var Simulation = require('voxel-async-simulation');
-    var request = require('browser-request');
+Speaking of... go [Download a Minecraft texture pack](https://www.planetminecraft.com/resources/texture_packs/) then unpack it and put your textures in a folder at the root called `texture-packs`. If you want you can also drop a `player.png` minecraft skin in the root directory so your avatar is textured.
 
-    var MyGame = new Simulation({
-        chunkLoader : function(placeholderChunk, complete){
-            var url = '/chunk/'+
-                placeholderChunk.position[0]+'/'+
-                placeholderChunk.position[1]+'/'+
-                placeholderChunk.position[2];
-            request({
-                uri :url,
-                json : true
-            }, function(err, response, data){
-                if(err) throw(err);
-                if(data.error) throw(new Error(
-                    data.message || (
-                        typeof data.error == 'boolean'?
-                            'Error requesting url:'+url:
-                            data.error
-                    )
-                ));
-                var results = new Int8Array(32*32*32);
-                var blocks = data.blocks;
-                for(var lcv=0; lcv<results.length; lcv++){
-                    results[lcv] = blocks[lcv];
-                }
-                data.blocks = results;
-                complete(undefined, data);
-            })
-        },
-        lookupMaterials : function(texturePack, cb){
-            var url = '/assets/'+texturePack+'/blocks';
-            request({
-                uri :url,
-                json : true
-            }, function(err, response, data){
-                if(err) return cb(err);
-                if(data.blocks){
-                    return cb(undefined, data.blocks);
-                }
-                cb(undefined, undefined);
-            })
-        }
-    });
+Now let's build the app(with browserify):
 
-then let's wrap the default server in a new file: `server.js`
+    browserify example-client.js -o app.js
 
-    require('voxel-async-simulation/server');
+then run the example server:
 
-then run it:
-
-    node server.js
+    node example-server.js
 
 and access [the html root](http://localhost:8081/index.html)
+
+Biomes[TBD]
+-----------
+Experimental! Untested! Likely to be externalized!
+
+This will produce material 1 in common areas, material 2 in uncommon areas and material 3 in rare areas, and because we pick a prime distribution, uncommon and rare biomes are more infrequent and continuous common areas increase in size as you move outward from the origin. rare biomes are alternated in the order they are provided. In addition to hints from the distribution algorithm, `context` contains a deterministic `random()` function for use in generating this submesh, but still being reproducible.
+
+    app.addBiome({
+        name : 'material-1',
+        generator : function(subX, subY, subZ, context){
+            return function(x, y, z){
+                if (y===0) return 1;
+            }
+        }
+    });
+    app.addBiome({
+        name : 'material-2',
+        generator : function(subX, subY, subZ, context){
+            return function(x, y, z){
+                if (y===0) return 2;
+            }
+        }
+    });
+    app.addBiome({
+        name : 'material-3',
+        generator : function(subX, subY, subZ, context){
+            return function(x, y, z){
+                if (y===0) return 3;
+            }
+        }
+    });
+    app.setBiomeDistribution(Server.Segmenters.prime)
 
 Testing
 -------

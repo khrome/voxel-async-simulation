@@ -24,8 +24,10 @@
         "voxel-highlight": "*",
         "voxel-player" : "*",
         "voxel-fly" : "*",
+        "voxel-sky" : "*",
         "voxel-walk" : "git://github.com/flyswatter/voxel-walk.git",
         "voxel" : "*",
+        "primes" : "*",
         "extend" : "*",
         "express" : "*",
         "extended-emitter" : "*"
