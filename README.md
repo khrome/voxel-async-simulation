@@ -17,7 +17,7 @@ This means you provide a generator function factory on the server:
 Usage
 -----
 
-There is a reimagining of [voxel-hello-world](https://github.com/maxogden/voxel-hello-world), that loads materials based on what it finds in the texture pack and has a different terrain loader (that runs on the server). Check out the source of the [example-client](https://github.com/khrome/voxel-async-simulation/example-client.js). Make sure to either change the client or to name your texturePack `'PhotoRealistic'` so you can use the client with the textures you are about to download.
+This is a reimagining of [voxel-hello-world](https://github.com/maxogden/voxel-hello-world) that loads materials based on what it finds in the texture pack and has a different terrain loader (which runs on the server). Check out the source of the [example-client](https://github.com/khrome/voxel-async-simulation/example-client.js) until there are more docs. Make sure to either change the client or to name your texturePack `'PhotoRealistic'` so you can use the client with the textures you are about to download.
 
 Speaking of... go [Download a Minecraft texture pack](https://www.planetminecraft.com/resources/texture_packs/) then unpack it and put your textures in a folder at the root called `texture-packs`. If you want you can also drop a `player.png` minecraft skin in the root directory so your avatar is textured.
 
@@ -39,25 +39,31 @@ This will produce material 1 in common areas, material 2 in uncommon areas and m
 
     app.addBiome({
         name : 'material-1',
+        rarity : 'common',
         generator : function(subX, subY, subZ, context){
             return function(x, y, z){
                 if (y===0) return 1;
+                return 0;
             }
         }
     });
     app.addBiome({
         name : 'material-2',
+        rarity : 'uncommon',
         generator : function(subX, subY, subZ, context){
             return function(x, y, z){
                 if (y===0) return 2;
+                return 0;
             }
         }
     });
     app.addBiome({
         name : 'material-3',
+        rarity : 'rare',
         generator : function(subX, subY, subZ, context){
             return function(x, y, z){
                 if (y===0) return 3;
+                return 0;
             }
         }
     });
