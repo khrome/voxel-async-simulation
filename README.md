@@ -17,7 +17,7 @@ This means you provide a generator function factory on the server:
 Usage
 -----
 
-This is a reimagining of [voxel-hello-world](https://github.com/maxogden/voxel-hello-world) that loads materials based on what it finds in the texture pack and has a different terrain loader (which runs on the server). Check out the source of the [example-client](https://github.com/khrome/voxel-async-simulation/example-client.js) until there are more docs. Make sure to either change the client or to name your texturePack `'PhotoRealistic'` so you can use the client with the textures you are about to download.
+This is a reimagining of [voxel-hello-world](https://github.com/maxogden/voxel-hello-world) that loads materials based on what it finds in the texture pack and has a different terrain loader (which runs on the server). Check out the source of the [example-client](https://github.com/khrome/voxel-async-simulation/blob/master/example-client.js) until there are more docs. Make sure to either change the client or to name your texturePack `'PhotoRealistic'` so you can use the client with the textures you are about to download.
 
 Speaking of... go [Download a Minecraft texture pack](https://www.planetminecraft.com/resources/texture_packs/) then unpack it and put your textures in a folder at the root called `texture-packs`. If you want you can also drop a `player.png` minecraft skin in the root directory so your avatar is textured.
 
@@ -33,7 +33,7 @@ and access [the html root](http://localhost:8081/index.html)
 
 Biomes
 -----------
-Using [voxel-biomes](https://www.npmjs.com/package/voxel-biomes) you can support biomes as a series of different generators. See an example of this in the [source](https://github.com/khrome/voxel-async-simulation/example-biome-server.js). To execute this inside this project, you need to manually `npm install voxel-biomes`;
+Using [voxel-biomes](https://www.npmjs.com/package/voxel-biomes) you can support biomes as a series of different generators. See an example of this in the [source](https://github.com/khrome/voxel-async-simulation/blob/master/example-biome-server.js). To execute this inside this project, you need to manually `npm install voxel-biomes`;
 
 Testing
 -------
