@@ -7,6 +7,42 @@ var fly = require('voxel-fly')
 var walk = require('voxel-walk');
 var gameSky = require('voxel-sky');
 
+// This is super shitty, but so is tossing the chunk *before* the event
+createGame.prototype.removeFarChunks = function(playerPosition) {
+  var self = this
+  playerPosition = playerPosition || this.playerPosition()
+  var nearbyChunks = this.voxels.nearbyChunks(playerPosition, this.removeDistance).map(function(chunkPos) {
+    return chunkPos.join('|')
+  })
+  Object.keys(self.voxels.chunks).map(function(chunkIndex) {
+    if (nearbyChunks.indexOf(chunkIndex) > -1) return
+    var chunk = self.voxels.chunks[chunkIndex]
+    var mesh = self.voxels.meshes[chunkIndex]
+    var pendingIndex = self.pendingChunks.indexOf(chunkIndex)
+    if (pendingIndex !== -1) self.pendingChunks.splice(pendingIndex, 1)
+    if (!chunk) return;
+    var chunkPosition = chunk.position
+    if (mesh) {
+      if (mesh.surfaceMesh) {
+        self.scene.remove(mesh.surfaceMesh)
+        mesh.surfaceMesh.geometry.dispose()
+      }
+      if (mesh.wireMesh) {
+        mesh.wireMesh.geometry.dispose()
+        self.scene.remove(mesh.wireMesh)
+      }
+      delete mesh.data
+      delete mesh.geometry
+      delete mesh.meshed
+      delete mesh.surfaceMesh
+      delete mesh.wireMesh
+    }
+    delete self.voxels.chunks[chunkIndex]
+    self.emit('removeChunk', chunk);
+  })
+  self.voxels.requestMissingChunks(playerPosition)
+}
+
 //var random = require('seedable-random');
 //var skmeans = require("skmeans");
 var Emitter = require("extended-emitter");
@@ -84,10 +120,19 @@ function VoxelSimulation(options){
 
 VoxelSimulation.prototype.build = function(cb){
     var ob = this;
+    var options = ob.options;
     this.createWorld(this.options, function(err, world){
-        ob.player = player(world)(options.playerSkin || 'player.png');
+        ob.player = player(world)(ob.options.playerSkin || 'player.png');
         ob.player.possess();
         ob.player.yaw.position.set(2, 14, 4);
+        world.on('removeChunk', function(chunk){
+            if(options.chunkSaver){
+                options.chunkSaver(chunk, function(err){
+                    if(err) console.log('ERROR SAVING', err);
+                });
+            }
+            ob.emit('chunk-unloaded', chunk);
+        });
         world.on('chunk-loaded', function(item){
             ob.emit('chunk-loaded', item);
         });
@@ -284,6 +329,21 @@ VoxelSimulation.Client = function(options){
             complete(undefined, data);
         })
     };
+
+    if(options.save === true && (!options.chunkSaver)) options.chunkSaver = function(chunk, complete){
+        var url = '/chunk/'+chunk.position[0]+'/'+
+            chunk.position[1]+'/'+chunk.position[2];
+        request({
+            uri :url,
+            method: 'post',
+            json : chunk
+        }, function(err, response, data){
+            if(err) console.log('Could not save chunk:', err);
+            if(!(data && data.success)) console.log('Failed to save chunk');
+            complete(err);
+        })
+    };
+
     if(!options.lookupMaterials) options.lookupMaterials = function(texturePack, cb){
         var url = '/assets/'+texturePack+'/blocks';
         request({

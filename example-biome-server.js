@@ -34,7 +34,15 @@ builder.addBiome({
 });
 
 var app = new Server();
+app.use(function (req,res,next) {
+    res.header("Access-Control-Allow-Origin", devUrl);
+    res.header('Access-Control-Allow-Methods', 'PUT, PATCH, GET, POST, DELETE, OPTIONS');
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    next();
+});
 app.setGenerator(builder.buildGenerator(WorldBuilder.Segmenters.primes()));
+app.setStorage(Server.Storage.memory());
 app.listen(8081, function(){
     console.log('Server listening on port 8081.');
 });
