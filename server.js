@@ -133,6 +133,10 @@ app.get('/assets/:texturePack/:type', function(req, res){
     );
 });
 
+app.setGenerator = function(generator){
+    subgen = generator;
+};
+/*
 var rarities = ['common', 'uncommon', 'rare'];
 
 app.addBiome = function(biome){
@@ -155,7 +159,7 @@ app.addBiome = function(biome){
 
 var Segmenters = {};
 
-var primes = primes(1000);
+var primelist = primes(1000);
 var comesAfter = function(item, list){
     var result = -1;
     list.forEach(function(listItem, index){
@@ -165,29 +169,56 @@ var comesAfter = function(item, list){
 }
 
 // creates a dense center of rares at world origin
-Segmenters.primes = function(x, y, z){
-    var xIn = primes.indexOf(x);
-    var zIn = primes.indexOf(z);
-    var xPos;
-    var zPos;
-    if(xIn === -1 && zIn === -1){
-        xPos = comesAfter(x, primes);
-        zPos = comesAfter(z, primes);
-        return {
-            type : 'common',
-            index: Math.max(xPos, zPos)
-        }
+Segmenters.primes = function(fn){
+    var intersector = fn || function(a, b){
+        return Math.max(a, b);
     }
-    if(xIn === -1) return { type : 'uncommon', index: zIn };
-    if(zIn === -1) return { type : 'uncommon', index: xIn };
-    return {
-        type : 'rare',
-        index: Math.max(xIn, zIn)
+    return function(x, y, z){
+        var xIn = primelist.indexOf(Math.abs(x));
+        var zIn = primelist.indexOf(Math.abs(z));
+        var xPos;
+        var zPos;
+        if(xIn === -1 && zIn === -1){
+            xPos = comesAfter(x, primelist);
+            zPos = comesAfter(z, primelist);
+            return {
+                type : 'common',
+                index: intersector(xPos, zPos)
+            }
+        }
+        if(xIn === -1) return { type : 'uncommon', index: zIn };
+        if(zIn === -1) return { type : 'uncommon', index: xIn };
+        return {
+            type : 'rare',
+            index: intersector(xIn, zIn)
+        }
     }
 }
 
-Segmenters.modulo = function(x, y, z){
-
+Segmenters.modulo = function(numA, numB, fn){
+    var intersector = fn || function(a, b){
+        return Math.max(a, b);
+    }
+    var numX = numA;
+    var numY = numB || numA;
+    return function(x, y, z){
+        var remX = x % numX;
+        var remZ = z % numY;
+        var posX = Math.floor(x / numX);
+        var posZ = Math.floor(z / numY);
+        if(remX === 0 && remZ === 0){
+            return {
+                type : 'common',
+                index: intersector(xPos, zPos)
+            }
+        }
+        if(remX === 0) return { type : 'uncommon', index: posX };
+        if(remZ === 0) return { type : 'uncommon', index: posZ };
+        return {
+            type : 'rare',
+            index: intersector(xPos, zPos)
+        }
+    }
 }
 
 var buildBiomesGenerator = function(ob, segmenter){
@@ -198,9 +229,9 @@ var buildBiomesGenerator = function(ob, segmenter){
     }
     return function(subX, subY, subZ){
         var selection = segmenter(subX, subY, subZ);
-        var biomes = biomes[selection.type];
-        var index = selection.index % biomes.length; //wraparound
-        return biomes[index].generator(subX, subY, subZ, selection);
+        var selectedBiomes = biomes[selection.type];
+        var index = selection.index % selectedBiomes.length; //wraparound
+        return selectedBiomes[index].generator(subX, subY, subZ, selection);
     }
 }
 
@@ -209,15 +240,13 @@ app.setBiomeDistribution = function(algorithm){
     if(typeof algorithm == 'function'){
         fn = algorithm;
     }else{
-        if(Segmenters[algorithm]) fn = Segmenters[algorithm]
+        if(Segmenters[algorithm]) fn = Segmenters[algorithm]()
     }
     if(!fn) throw new Error('No valid algorithm provided');
     subgen = buildBiomesGenerator(app, algorithm);
-}
+}*/
 
 module.exports = function(generator){
     if(generator) subgen = generator;
     return app;
 }
-
-module.exports.Segmentors;
