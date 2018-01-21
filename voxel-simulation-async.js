@@ -46,7 +46,7 @@ createGame.prototype.removeFarChunks = function(playerPosition) {
 //var random = require('seedable-random');
 //var skmeans = require("skmeans");
 var Emitter = require("extended-emitter");
-var Generators = require("./voxel-generators");
+var Generators = require("voxel-generators");
 
 function handlePart(index, part, list){
     list.filter(function(item){
@@ -228,7 +228,7 @@ VoxelSimulation.prototype.createWorld = function(options, cb){
               return chunk;
           },
           materials: initOptions.materials,
-          chunkDistance: options.chunkDistance || 3,
+          chunkDistance: options.chunkDistance || 2,
           texturePath: options.texturePath,
           materialFlatColor: !(options.useTextures || options.texturePath),
           worldOrigin: options.origin || [0, 0, 0],

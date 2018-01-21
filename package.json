@@ -27,6 +27,8 @@
         "voxel-sky" : "*",
         "voxel-walk" : "git://github.com/flyswatter/voxel-walk.git",
         "voxel" : "*",
+        "simplex-noise" : "*",
+        "perlin" : "*",
         "extend" : "*",
         "express" : "*",
         "extended-emitter" : "*"

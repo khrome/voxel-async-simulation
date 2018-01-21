@@ -1,7 +1,7 @@
 var express = require('express');
 var bodyParser = require('body-parser');
 var voxel = require('voxel');
-var Generators = require('./voxel-generators');
+var Generators = require('voxel-generators');
 var group = require('group-by-subsequence');
 var primes = require('primes');
 var fs = require('fs');
@@ -22,7 +22,7 @@ var subgen = function(subX, subY, subZ){
 var app = express();
 
 function check(a){
-    if(a > 8) return 0;
+    if(a > 100) return 0;
     return a;
 }
 
