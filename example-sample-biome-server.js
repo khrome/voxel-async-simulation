@@ -3,9 +3,15 @@ var WorldBuilder = require('voxel-biomes');
 
 var builder = new WorldBuilder();
 builder.addBiome(require('voxel-biomes/biomes/hills'));
+builder.addBiome(require('voxel-biomes/biomes/badlands'));
 builder.addBiome(require('voxel-biomes/biomes/forest'));
+builder.addBiome(require('voxel-biomes/biomes/woods'));
 builder.addBiome(require('voxel-biomes/biomes/village'));
+builder.addBiome(require('voxel-biomes/biomes/temple'));
+builder.addBiome(require('voxel-biomes/biomes/megalith'));
 builder.addBiome(require('voxel-biomes/biomes/plains'));
+builder.addBiome(require('voxel-biomes/biomes/field'));
+builder.addBiome(require('voxel-biomes/biomes/desert'));
 
 var app = new Server();
 app.use(function (req,res,next) {

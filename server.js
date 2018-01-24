@@ -40,18 +40,18 @@ var offset = 32*32;
 var lookups = {};
 var submeshes = {};
 app.use(express.static('.', {
-  dotfiles: 'ignore',
-  etag: false,
-  extensions: [
-      'png', 'gif', 'jpg', 'jpeg', 'json', 'js', 'html', 'css',
-      'ttf', 'eot', 'woff', 'ico', 'otf', 'svg'
-  ],
-  index: false,
-  maxAge: '1d',
-  redirect: false,
-  setHeaders: function (res, path, stat) {
-    res.set('x-timestamp', Date.now())
-  }
+    dotfiles: 'ignore',
+    etag: false,
+    extensions: [
+        'png', 'gif', 'jpg', 'jpeg', 'json', 'js', 'html', 'css',
+        'ttf', 'eot', 'woff', 'ico', 'otf', 'svg'
+    ],
+    index: false,
+    maxAge: '1d',
+    redirect: false,
+    setHeaders: function (res, path, stat) {
+        res.set('x-timestamp', Date.now())
+    }
 }));
 
 function generateSubmesh(x, y, z){
@@ -81,7 +81,7 @@ function generateSubmesh(x, y, z){
     return results;
 }
 
-app.get('/chunk/:x/:y/:z', function(req, res){
+app.get('/chunk/:world/:x/:y/:z', function(req, res){
     var x = req.params.x;
     var y = req.params.y;
     var z = req.params.z;
@@ -93,7 +93,7 @@ app.get('/chunk/:x/:y/:z', function(req, res){
         });
     }else res.end(JSON.stringify(results));
 });
-app.post('/chunk/:x/:y/:z', jsonParser, function(req, res){
+app.post('/chunk/:world/:x/:y/:z', jsonParser, function(req, res){
     var data = req.body;
     if(storage){
         storage.saver(data, function(err){

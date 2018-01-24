@@ -1,7 +1,7 @@
 {
     "name": "voxel-async-simulation",
     "homepage": "https://github.com/khrome/voxel-async-simulation",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "main": "voxel-simulation-async.js",
     "description": "Load voxel.js chunks asynchronously from a server",
     "keywords": [
@@ -24,11 +24,10 @@
         "voxel-highlight": "*",
         "voxel-player" : "*",
         "voxel-fly" : "*",
-        "voxel-sky" : "*",
+        "voxel-weather" : "*",
         "voxel-walk" : "git://github.com/flyswatter/voxel-walk.git",
         "voxel" : "*",
-        "simplex-noise" : "*",
-        "perlin" : "*",
+        "uuid" : "*",
         "extend" : "*",
         "express" : "*",
         "extended-emitter" : "*"

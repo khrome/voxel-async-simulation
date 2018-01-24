@@ -5,7 +5,8 @@ var voxel = require('voxel');
 var extend = require('extend')
 var fly = require('voxel-fly')
 var walk = require('voxel-walk');
-var gameSky = require('voxel-sky');
+var createWeather = require('voxel-weather');
+var uuid = require('uuid');
 
 // This is super shitty, but so is tossing the chunk *before* the event
 createGame.prototype.removeFarChunks = function(playerPosition) {
@@ -122,17 +123,33 @@ VoxelSimulation.prototype.build = function(cb){
     var ob = this;
     var options = ob.options;
     this.createWorld(this.options, function(err, world){
+        if(!ob.options.randomSeed) ob.options.randomSeed = uuid.v4();
+        if(!ob.options.graphicsQuality) ob.options.graphicsQuality = 3;
         ob.player = player(world)(ob.options.playerSkin || 'player.png');
         ob.player.possess();
         ob.player.yaw.position.set(2, 14, 4);
-        world.on('removeChunk', function(chunk){
+        /*world.on('removeChunk', function(chunk){
             if(options.chunkSaver){
                 options.chunkSaver(chunk, function(err){
                     if(err) console.log('ERROR SAVING', err);
                 });
             }
             ob.emit('chunk-unloaded', chunk);
-        });
+        });*/
+        var dirtyChunks = [];
+        game.on('dirtyChunkUpdate', function(chunk){
+            if(dirtyChunks.indexOf(chunk) === -1) dirtyChunks.push(chunk);
+        })
+        // timer outside game timings, debounced a little
+        // current players will get stream updates,
+        // joining players might get out of sync (mb event on file change?)
+        setInterval(function(){
+            if(options.chunkSaver && dirtyChunks.length){
+                options.chunkSaver(dirtyChunks.shift(), function(err){
+                    if(err) console.log('ERROR SAVING', err);
+                });
+            }
+        }, 200);
         world.on('chunk-loaded', function(item){
             ob.emit('chunk-loaded', item);
         });
@@ -151,8 +168,7 @@ VoxelSimulation.prototype.build = function(cb){
         });
 
         //attach view
-        var container = options.container || document.body
-        //window.game = game // for debugging
+        var container = options.container || document.body;
         world.appendTo(container)
         if (world.notCapable()) return;
 
@@ -160,8 +176,11 @@ VoxelSimulation.prototype.build = function(cb){
         var makeFly = fly(world)
         var target = world.controls.target()
         world.flyer = makeFly(target);
-        var sky = gameSky(world)();
-
+        var weather = createWeather(world, true, true);
+        weather(ob.options.weatherCycle || [
+            'clear', 'cloudy', 'sprinkle', 'rain', 'stormy', 'rain',
+            'sprinkle', 'cloudy', 'clear', 'clear', 'clear', 'clear'
+        ]);
         // highlight blocks when you look at them, hold <Ctrl> for block placement
         var blockPosPlace, blockPosErase
         var hl = world.highlighter = highlight(world, { color: 0xff0000 })
@@ -195,7 +214,6 @@ VoxelSimulation.prototype.build = function(cb){
             var vz = Math.abs(target.velocity.z)
             if (vx > 0.001 || vz > 0.001) walk.stopWalking()
             else walk.startWalking();
-            sky();
         });
     });
 };
@@ -305,8 +323,9 @@ VoxelSimulation.prototype.initizationOptions = function(cb){
 VoxelSimulation.Client = function(options){
     if(!options) options = {};
     var request = require('browser-request');
+    var thisSim
     if(!options.chunkLoader) options.chunkLoader = function(placeholderChunk, complete){
-        var url = '/chunk/'+
+        var url = '/chunk/'+thisSim.options.randomSeed+'/'+
             placeholderChunk.position[0]+'/'+
             placeholderChunk.position[1]+'/'+
             placeholderChunk.position[2];
@@ -331,7 +350,7 @@ VoxelSimulation.Client = function(options){
     };
 
     if(options.save === true && (!options.chunkSaver)) options.chunkSaver = function(chunk, complete){
-        var url = '/chunk/'+chunk.position[0]+'/'+
+        var url = '/chunk/'+thisSim.options.randomSeed+'/'+chunk.position[0]+'/'+
             chunk.position[1]+'/'+chunk.position[2];
         request({
             uri :url,
@@ -357,7 +376,7 @@ VoxelSimulation.Client = function(options){
             cb(undefined, undefined);
         })
     };
-    var thisSim = new VoxelSimulation(options);
+    thisSim = new VoxelSimulation(options);
     return thisSim;
 }
 
