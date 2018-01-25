@@ -137,7 +137,7 @@ VoxelSimulation.prototype.build = function(cb){
             ob.emit('chunk-unloaded', chunk);
         });*/
         var dirtyChunks = [];
-        game.on('dirtyChunkUpdate', function(chunk){
+        world.on('dirtyChunkUpdate', function(chunk){
             if(dirtyChunks.indexOf(chunk) === -1) dirtyChunks.push(chunk);
         })
         // timer outside game timings, debounced a little
@@ -160,6 +160,7 @@ VoxelSimulation.prototype.build = function(cb){
         }, function(chunk){
             if(!loaded){
                 setTimeout(function(){
+                    //console.log('#####', world.materials)
                     ob.player.position.set(0, 32, 0);
                     cb();
                 }, 3000);
@@ -290,30 +291,9 @@ VoxelSimulation.prototype.initizationOptions = function(cb){
             ob.options.texturePack ||
             'PhotoRealistic',
             function(err, materials){
+                if(!materials.length) (console.warn || console.log)('No materials recieved')
                 ob.initOpts = {};
-                var mats = Object.keys(materials).sort(function(a, b){
-                    if(!ob.options.materialsOrdering){
-                        return a > b;
-                    }
-                    var mo = ob.options.materialsOrdering;
-                    return comparable(a, mo) < comparable(b, mo);
-                });
-                ob.initOpts.materials = mats.map(function(key){
-                    return materials[key];
-                }).filter(function(item){
-                    return !!item.side;
-                }).map(function(item){
-                    if(item.top && item.bottom && item.side){
-                        return [item.top, item.bottom, item.side];
-                    }
-                    if(item.top && item.side){
-                        return [item.top, item.side, item.side];
-                    }
-                    if(item.bottom && item.side){
-                        return [item.side, item.bottom, item.side];
-                    }
-                    return item.side;
-                });
+                ob.initOpts.materials = materials;
                 cb(undefined, ob.initOpts);
             }
         );
@@ -370,8 +350,8 @@ VoxelSimulation.Client = function(options){
             json : true
         }, function(err, response, data){
             if(err) return cb(err);
-            if(data.blocks){
-                return cb(undefined, data.blocks);
+            if(data){
+                return cb(undefined, data);
             }
             cb(undefined, undefined);
         })

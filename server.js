@@ -2,6 +2,7 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var voxel = require('voxel');
 var Generators = require('voxel-generators');
+var loadTexturePack = require('voxel-minecraft-texture-pack-loader');
 var group = require('group-by-subsequence');
 var primes = require('primes');
 var fs = require('fs');
@@ -105,35 +106,9 @@ app.post('/chunk/:world/:x/:y/:z', jsonParser, function(req, res){
 app.get('/assets/:texturePack/:type', function(req, res){
     var texturePack = req.params.texturePack;
     var type = req.params.type;
-    if(lookups[texturePack] && lookups[texturePack][type]){
-        res.end(JSON.stringify(lookups[texturePack][type]));
-        return;
-    }
-    fs.readdir(
-        process.cwd()+
-        '/texture-packs/'+
-        texturePack+
-        '/assets/minecraft/textures/'+type, function(err, list){
-            var result = group(list, {
-                stopwords : [
-                    'log', 'rail', 'trip', 'sapling', 'leaves',
-                    'mushroom', 'nether', 'bed'
-                ],
-                replacements : {
-                    png : 'side'
-                },
-                wordBoundary : '_',
-                objectReturn : function(s, prefix){
-                    return s.substring(prefix.length).split('.').shift();
-                }
-            });
-            var output = { };
-            output[type] = result;
-            if(!lookups[texturePack]) lookups[texturePack] = {};
-            lookups[texturePack][type] = output;
-            res.end(JSON.stringify(output));
-        }
-    );
+    loadTexturePack('./texture-packs/'+texturePack, function(err, pack){
+        res.end(JSON.stringify(pack.toTextureList().slice(1)));
+    });
 });
 
 app.setGenerator = function(generator){
