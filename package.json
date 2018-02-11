@@ -1,7 +1,7 @@
 {
     "name": "voxel-async-simulation",
     "homepage": "https://github.com/khrome/voxel-async-simulation",
-    "version": "0.0.9",
+    "version": "0.0.10",
     "main": "voxel-simulation-async.js",
     "description": "Load voxel.js chunks asynchronously from a server",
     "keywords": [
@@ -20,17 +20,21 @@
         "url": "git://github.com/khrome/voxel-async-simulation.git"
     },
     "dependencies": {
-        "voxel-engine": "*",
+        "browser-request": "^0.3.3",
+        "express": "*",
+        "extend": "*",
+        "extended-emitter": "^1.0.2",
+        "primes": "0.0.1",
+        "uuid": "*",
+        "voxel": "*",
+        "voxel-engine": "^0.20.2",
+        "voxel-fly": "*",
+        "voxel-generators": "0.0.4",
         "voxel-highlight": "*",
-        "voxel-player" : "*",
-        "voxel-fly" : "*",
-        "voxel-weather" : "*",
-        "voxel-walk" : "git://github.com/flyswatter/voxel-walk.git",
-        "voxel" : "*",
-        "uuid" : "*",
-        "extend" : "*",
-        "express" : "*",
-        "extended-emitter" : "*"
+        "voxel-minecraft-texture-pack-loader": "0.0.3",
+        "voxel-player": "*",
+        "voxel-walk": "*",
+        "voxel-weather": "*"
     },
     "devDependencies": {},
     "optionalDependencies": {},

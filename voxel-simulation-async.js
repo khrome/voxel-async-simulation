@@ -112,30 +112,27 @@ function VoxelSimulation(options){
     options.texturePath = './texture-packs/'+
         this.options.texturePack+
         '/assets/minecraft/textures/blocks/';
-    this.build(function(){
-        ob.emit('load-complete');
-        if(options.onReady) options.onReady();
-    });
-    this.emit('load-start');
+    if(!options.delayedBuild) this.build(function(){ });
+};
+
+VoxelSimulation.prototype.destroy = function(cb){
+    setTimeout(function(){
+        if(cb) cb();
+    }, 0);
 };
 
 VoxelSimulation.prototype.build = function(cb){
     var ob = this;
     var options = ob.options;
+    this.emit('load-start');
     this.createWorld(this.options, function(err, world){
+        ob.emit('load-complete');
+        ob.world = world;
         if(!ob.options.randomSeed) ob.options.randomSeed = uuid.v4();
         if(!ob.options.graphicsQuality) ob.options.graphicsQuality = 3;
         ob.player = player(world)(ob.options.playerSkin || 'player.png');
         ob.player.possess();
         ob.player.yaw.position.set(2, 14, 4);
-        /*world.on('removeChunk', function(chunk){
-            if(options.chunkSaver){
-                options.chunkSaver(chunk, function(err){
-                    if(err) console.log('ERROR SAVING', err);
-                });
-            }
-            ob.emit('chunk-unloaded', chunk);
-        });*/
         var dirtyChunks = [];
         world.on('dirtyChunkUpdate', function(chunk){
             if(dirtyChunks.indexOf(chunk) === -1) dirtyChunks.push(chunk);
@@ -147,12 +144,17 @@ VoxelSimulation.prototype.build = function(cb){
             if(options.chunkSaver && dirtyChunks.length){
                 options.chunkSaver(dirtyChunks.shift(), function(err){
                     if(err) console.log('ERROR SAVING', err);
+                    console.log('SAVED CHUNK');
                 });
             }
         }, 200);
         world.on('chunk-loaded', function(item){
             ob.emit('chunk-loaded', item);
         });
+        var makeFly = fly(world)
+        var target = world.controls.target()
+        world.flyer = makeFly(target);
+
         //todo: investigate why this flag is needed
         var loaded;
         ob.once('chunk-loaded', {
@@ -160,10 +162,8 @@ VoxelSimulation.prototype.build = function(cb){
         }, function(chunk){
             if(!loaded){
                 setTimeout(function(){
-                    //console.log('#####', world.materials)
-                    ob.player.position.set(0, 32, 0);
-                    cb();
-                }, 3000);
+                    if(cb) cb(undefined, target, world, ob.options);
+                }, 2000);
                 loaded = true;
             }
         });
@@ -174,9 +174,6 @@ VoxelSimulation.prototype.build = function(cb){
         if (world.notCapable()) return;
 
         //setup
-        var makeFly = fly(world)
-        var target = world.controls.target()
-        world.flyer = makeFly(target);
         var weather = createWeather(world, true, true);
         weather(ob.options.weatherCycle || [
             'clear', 'cloudy', 'sprinkle', 'rain', 'stormy', 'rain',
@@ -184,37 +181,25 @@ VoxelSimulation.prototype.build = function(cb){
         ]);
         // highlight blocks when you look at them, hold <Ctrl> for block placement
         var blockPosPlace, blockPosErase
-        var hl = world.highlighter = highlight(world, { color: 0xff0000 })
+        var hl = world.highlighter = highlight(world, {
+            color: options.highlightColor || 0xff0000,
+            selectActive: function(){
+                return !!ob.placing;
+            }
+        })
         hl.on('highlight', function (voxelPos) { blockPosErase = voxelPos })
         hl.on('remove', function (voxelPos) { blockPosErase = null })
         hl.on('highlight-adjacent', function (voxelPos) { blockPosPlace = voxelPos })
         hl.on('remove-adjacent', function (voxelPos) { blockPosPlace = null })
 
-        ob.player.toggle(); //start in third person
-        // toggle between first and third person modes
-        window.addEventListener('keydown', function (ev) {
-            if (ev.keyCode === 'R'.charCodeAt(0)) ob.player.toggle()
-        });
-
-        // block interaction stuff, uses highlight data
-        var currentMaterial = 1
-
         world.on('fire', function (target, state) {
             var position = blockPosPlace
             if(position){
-                world.createBlock(position, currentMaterial)
+                world.emit('activate-voxel', position);
             }else{
                 position = blockPosErase
-                if (position) world.setBlock(position, 0)
+                if (position) world.emit('interact-voxel', position);
             }
-        });
-
-        world.on('tick', function() {
-            walk.render(target.playerSkin)
-            var vx = Math.abs(target.velocity.x)
-            var vz = Math.abs(target.velocity.z)
-            if (vx > 0.001 || vz > 0.001) walk.stopWalking()
-            else walk.startWalking();
         });
     });
 };
@@ -251,6 +236,8 @@ VoxelSimulation.prototype.createWorld = function(options, cb){
           texturePath: options.texturePath,
           materialFlatColor: !(options.useTextures || options.texturePath),
           worldOrigin: options.origin || [0, 0, 0],
+          fogDisabled: !options.fog,
+          skyColor: options.skyColor|| 0x6666CC,
           lightsDisabled: true,
           controls: { discreteFire: true }
         });
@@ -289,7 +276,7 @@ VoxelSimulation.prototype.initizationOptions = function(cb){
     }else{
         ob.lookupMaterials(
             ob.options.texturePack ||
-            'PhotoRealistic',
+            'freeture',
             function(err, materials){
                 if(!materials.length) (console.warn || console.log)('No materials recieved')
                 ob.initOpts = {};
