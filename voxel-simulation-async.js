@@ -6,7 +6,9 @@ var extend = require('extend')
 var fly = require('voxel-fly')
 var walk = require('voxel-walk');
 var createWeather = require('voxel-weather');
+var Generator = require('voxel-generators');
 var uuid = require('uuid');
+var isElectron = require('is-electron');
 
 // This is super shitty, but so is tossing the chunk *before* the event
 createGame.prototype.removeFarChunks = function(playerPosition) {
@@ -101,11 +103,12 @@ VoxelSimulation.setMaterials = function(materials){
     }
 };
 
-
 function VoxelSimulation(options){
     var ob = this;
     this.options = options || {};
     (new Emitter()).onto(this);
+    if(!this.options.seed) this.options.seed = uuid.v1();
+
     //if(!this.options.texturePack) throw Error()
     this.lookupMaterials = this.options.lookupMaterials ||
         VoxelSimulation.lookupMaterials;
@@ -113,6 +116,28 @@ function VoxelSimulation(options){
         this.options.texturePack+
         '/assets/minecraft/textures/blocks/';
     if(!options.delayedBuild) this.build(function(){ });
+    //SHAMEFUL INPUT HACK
+    this.mouseDown = [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    this.mouseDownCount = 0;
+    ob = this;
+    document.body.onmousedown = function(evt) {
+      ++ob.mouseDown[evt.button];
+      ++ob.mouseDownCount;
+    }
+    document.body.onmouseup = function(evt) {
+      --ob.mouseDown[evt.button];
+      --ob.mouseDownCount;
+    }
+};
+
+VoxelSimulation.prototype.simulateMouseButton = function(button){
+    if(button === false){
+        this.mouseDown = this.mouseDown.map(function(item){
+            return 0;
+        })
+    }else{
+        this.mouseDown[button] = 1;
+    }
 };
 
 VoxelSimulation.prototype.destroy = function(cb){
@@ -174,32 +199,55 @@ VoxelSimulation.prototype.build = function(cb){
         if (world.notCapable()) return;
 
         //setup
-        var weather = createWeather(world, true, true);
+        var showSky = (options.quality && options.quality > 1);
+        var showWeather = (options.quality && options.quality > 2);
+        var weather = createWeather(world, showSky, showWeather);
         weather(ob.options.weatherCycle || [
             'clear', 'cloudy', 'sprinkle', 'rain', 'stormy', 'rain',
             'sprinkle', 'cloudy', 'clear', 'clear', 'clear', 'clear'
         ]);
         // highlight blocks when you look at them, hold <Ctrl> for block placement
         var blockPosPlace, blockPosErase
+        var lastMode;
         var hl = world.highlighter = highlight(world, {
             color: options.highlightColor || 0xff0000,
             selectActive: function(){
-                return !!ob.placing;
+                //return !!ob.placing;
+                return ob.mouseDown[1];
+            },
+            adjacentActive: function(){
+                //return !!ob.placing;
+                return ob.mouseDown[0];
             }
         })
-        hl.on('highlight', function (voxelPos) { blockPosErase = voxelPos })
-        hl.on('remove', function (voxelPos) { blockPosErase = null })
-        hl.on('highlight-adjacent', function (voxelPos) { blockPosPlace = voxelPos })
-        hl.on('remove-adjacent', function (voxelPos) { blockPosPlace = null })
+        ob.hl = hl;
+        hl.on('highlight', function (voxelPos) {
+            blockPosErase = voxelPos
+        });
+        hl.on('remove', function (voxelPos) {
+            blockPosErase = null
+        });
+        hl.on('highlight-adjacent', function(voxelPos){
+            blockPosPlace = voxelPos
+        });
+        hl.on('remove-adjacent', function(voxelPos){
+            blockPosPlace = null
+        });
 
-        world.on('fire', function (target, state) {
-            var position = blockPosPlace
-            if(position){
-                world.emit('activate-voxel', position);
-            }else{
-                position = blockPosErase
-                if (position) world.emit('interact-voxel', position);
-            }
+
+        world.on('fire', function(target, state) {
+            setTimeout(function(){
+                var position = blockPosPlace;
+                if(ob.mouseDown[2]){
+                        world.emit('destroy-voxel', blockPosErase);
+                }
+                if(ob.mouseDown[1]){
+                        world.emit('inspect-voxel', blockPosErase);
+                }
+                if(ob.mouseDown[0]){
+                        world.emit('empty-voxel', blockPosPlace);
+                }
+            }, 100);
         });
     });
 };
@@ -207,10 +255,16 @@ VoxelSimulation.prototype.build = function(cb){
 //Sphere, Noise, DenseNoise, Checker, Hill, Valley, HillyTerrain
 VoxelSimulation.Generators = Generators;
 
+VoxelSimulation.prototype.deselect = function(){
+    this.hl.selectStart = null
+}
+
 VoxelSimulation.prototype.createWorld = function(options, cb){
     var ob = this;
     var chunkCache = {};
     this.initizationOptions(function(err, initOptions){
+        var chunkDistance = options.quality?(options.quality+1):
+            (options.chunkDistance || 2);
         var game = createGame({
           generateVoxelChunk: function(low, high, x, y, z) {
               var key = [x,y,z].join('|');
@@ -232,13 +286,13 @@ VoxelSimulation.prototype.createWorld = function(options, cb){
               return chunk;
           },
           materials: initOptions.materials,
-          chunkDistance: options.chunkDistance || 2,
+          chunkDistance: chunkDistance,
           texturePath: options.texturePath,
           materialFlatColor: !(options.useTextures || options.texturePath),
           worldOrigin: options.origin || [0, 0, 0],
-          fogDisabled: !options.fog,
+          fogDisabled: (options.quality && options.quality > 2)?false:true,
           skyColor: options.skyColor|| 0x6666CC,
-          lightsDisabled: true,
+          lightsDisabled: (options.quality && options.quality == 1)?false:true,
           controls: { discreteFire: true }
         });
         ob.on('recieve-chunk', function(chunk){
@@ -290,9 +344,10 @@ VoxelSimulation.prototype.initizationOptions = function(cb){
 VoxelSimulation.Client = function(options){
     if(!options) options = {};
     var request = require('browser-request');
-    var thisSim
+    var thisSim;
+
     if(!options.chunkLoader) options.chunkLoader = function(placeholderChunk, complete){
-        var url = '/chunk/'+thisSim.options.randomSeed+'/'+
+        var url = '/chunk/'+thisSim.options.seed+'/'+
             placeholderChunk.position[0]+'/'+
             placeholderChunk.position[1]+'/'+
             placeholderChunk.position[2];
@@ -307,7 +362,7 @@ VoxelSimulation.Client = function(options){
                     data.error
             )));
             var results = new Int8Array(32*32*32);
-            var blocks = data.blocks;
+            var blocks = data.blocks || data.voxels;
             for(var lcv=0; lcv<results.length; lcv++){
                 results[lcv] = blocks[lcv];
             }
@@ -317,7 +372,7 @@ VoxelSimulation.Client = function(options){
     };
 
     if(options.save === true && (!options.chunkSaver)) options.chunkSaver = function(chunk, complete){
-        var url = '/chunk/'+thisSim.options.randomSeed+'/'+chunk.position[0]+'/'+
+        var url = '/chunk/'+thisSim.options.seed+'/'+chunk.position[0]+'/'+
             chunk.position[1]+'/'+chunk.position[2];
         request({
             uri :url,

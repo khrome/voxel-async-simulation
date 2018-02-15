@@ -2,10 +2,12 @@ var express = require('express');
 var bodyParser = require('body-parser');
 var voxel = require('voxel');
 var Generators = require('voxel-generators');
+var WorldBuilder = require('voxel-biomes');
 var loadTexturePack = require('voxel-minecraft-texture-pack-loader');
 var group = require('group-by-subsequence');
 var primes = require('primes');
 var fs = require('fs');
+var isElectron = require('is-electron');
 
 var jsonParser = bodyParser.json({limit: '3mb'});
 
@@ -55,13 +57,13 @@ app.use(express.static('.', {
     }
 }));
 
-function generateSubmesh(x, y, z){
+function generateSubmesh(x, y, z, subgenerator){
     var data = [];
     var xOff = 32 * 32;
     yOff = 32;
     var xPart;
     var yPart;
-    var gen = subgen(x, y, z);
+    var gen = (subgenerator||subgen)(x, y, z);
     for(var x=0; x < 32; x++ ){
         xPart = x * xOff;
         for(var y=0; y < 32; y++ ){
@@ -82,22 +84,49 @@ function generateSubmesh(x, y, z){
     return results;
 }
 
+var generatorRequestor;
 app.get('/chunk/:world/:x/:y/:z', function(req, res){
     var x = req.params.x;
     var y = req.params.y;
     var z = req.params.z;
-    var results = generateSubmesh(x, y, z);
-    if(storage){
-        storage.loader(x, y, z, function(err){
+    var worldName = req.params.world;
+    generatorRequestor(worldName, function(err, config, texturePack, builder){
+        var distroFn;
+        if(config.distribution === 'prime'){
+            distroFn = WorldBuilder.Segmenters.primes();
+        }else{
+            var parts = config.distribution.split(':')
+            if(parts[0] !== 'modulo') throw new Error('unknown')
+            distroFn = WorldBuilder.Segmenters.modulo(parseInt(parts[0]));
+        }
+        var generator = builder.buildGenerator(distroFn);
+        if(storage){
+            storage.loader(worldName, x, y, z, function(err, data){
+                if(err) throw err;
+                var results = data || generateSubmesh(x, y, z, generator);
+                res.end(JSON.stringify(results));
+            });
+        }else{
+            var results = generateSubmesh(x, y, z, generator);
+            res.end(JSON.stringify(results));
+        }
+    })
+    /*if(storage){
+        storage.loader(x, y, z, function(err, data){
             if(err) throw err;
+            var results = data || generateSubmesh(x, y, z);
             res.end(JSON.stringify(results));
         });
-    }else res.end(JSON.stringify(results));
+    }else{
+        var results = generateSubmesh(x, y, z);
+        res.end(JSON.stringify(results));
+    }*/
 });
 app.post('/chunk/:world/:x/:y/:z', jsonParser, function(req, res){
+    var worldName = req.params.world;
     var data = req.body;
     if(storage){
-        storage.saver(data, function(err){
+        storage.saver(worldName, data, function(err){
             if(err) throw err;
             res.end(JSON.stringify({success :true}));
         });
@@ -110,6 +139,10 @@ app.get('/assets/:texturePack/:type', function(req, res){
         res.end(JSON.stringify(pack.toTextureList().slice(1)));
     });
 });
+
+app.setGeneratorRequestor = function(requestor){
+    generatorRequestor = requestor;
+};
 
 app.setGenerator = function(generator){
     subgen = generator;
@@ -128,11 +161,11 @@ var Storage = {};
 Storage.memory = function(){
     var index = {};
     return {
-        loader : function(x, y, z, cb){
+        loader : function(name, x, y, z, cb){
             var key = x+'|'+y+'|'+z;
             return cb(undefined, index[key]);
         },
-        saver : function(submesh, cb){
+        saver : function(name, submesh, cb){
             var x = submesh.position[0];
             var y = submesh.position[1];
             var z = submesh.position[2];
@@ -145,27 +178,28 @@ Storage.memory = function(){
 
 Storage.files = function(root){
     return {
-        loader : function(x, y, z, cb){
-            var url = root+'/'+x+'/'+y+'/'+z+'.json';
+        loader : function(name, x, y, z, cb){
+            var url = root+'/'+name+'/'+x+'/'+y+'/'+z+'.json';
             fs.exists(url, function(exists){
-                console.log('exists', exists)
                 if(!exists) return cb(undefined, undefined);
-                fs.read(url, function(err, data){
-                    console.log('data', data)
+                fs.readFile(url, function(err, data){
+                    var parsed = JSON.parse(data);
+                    //console.log('data', parsed)
                     if(err) throw err;
                     return cb(undefined, JSON.parse(data));
                 });
             });
         },
-        saver : function(submesh, cb){
+        saver : function(name, submesh, cb){
             var x = submesh.position[0];
             var y = submesh.position[1];
             var z = submesh.position[2];
-            var xDir = root+'/'+x;
+            var xDir = root+'/'+name+'/'+x;
+            var yDir;
             var next = function(){
-                var yDir = xDir+'/'+y;
+                yDir = xDir+'/'+y;
                 fs.exists(yDir, function(exists){
-                    if(exists) last();
+                    if(exists) return last();
                     fs.mkdir(yDir, function(err){
                         if(err) throw err;
                         last();
@@ -173,19 +207,30 @@ Storage.files = function(root){
                 });
             }
             var last = function(){
-                fs.write(
-                    yDir+'/'+z+'.json',
+                var file = yDir+'/'+z+'.json';
+                fs.writeFile(
+                    file,
                     JSON.stringify(submesh, undefined, '  '),
                     function(){
                         if(cb) cb();
                     }
                 );
             }
-            fs.exists(xDir, function(exists){
-                if(exists) next();
-                fs.mkdir(xDir, function(err){
+            var first = function(){
+                fs.exists(xDir, function(exists){
+                    if(exists) return next();
+                    fs.mkdir(xDir, function(err){
+                        if(err) throw err;
+                        next();
+                    })
+                });
+            }
+            var worldDir = root+'/'+name+'/';
+            fs.exists(worldDir, function(exists){
+                if(exists) return first();
+                fs.mkdir(worldDir, function(err){
                     if(err) throw err;
-                    next();
+                    first();
                 })
             });
         }

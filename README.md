@@ -1,25 +1,48 @@
 VoxelSimulation
 ===============
 
-Things got much better... it may even be useful now. There are two things this package provides:
-- A simple server based loading abstraction
-- chunk referencing when generating (which will soon manifest in a biome abstraction)
+A client/server abstraction for wrapping voxeljs and doing chunk generation on the server.
 
-This means you provide a generator function factory on the server:
+Server
+------
 
-    function(chunkX, chunkY, chunkZ){
-        //chunk specific work here
-        return function(x, y, z){
-            //voxel specific work here
-        }
-    }
+```javascript
+    var Server = require('voxel-async-simulation/server');
+    var app = new Server();
+    //you're probably on localhost and will need these headers
+    app.use(function(req,res,next){
+        res.header("Access-Control-Allow-Origin", "*"); //this gets served on localhost
+        res.header('Access-Control-Allow-Methods', 'PUT, PATCH, GET, POST, DELETE, OPTIONS');
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        res.setHeader('Access-Control-Allow-Credentials', true);
+        next();
+    });
+    app.setGenerator(/*chunk generator factory function*/);
+    //app.setStorage(Server.Storage.memory()); //if you want to cache in memory
+    app.setStorage(Server.Storage.files('./data')); //to save to disk
+    app.listen(8081, function(){
+        console.log('Server listening on port 8081.');
+    });
+```
 
-Usage
------
-
-This is a reimagining of [voxel-hello-world](https://github.com/maxogden/voxel-hello-world) that loads materials based on what it finds in the texture pack and has a different terrain loader (which runs on the server). Check out the source of the [example-client](https://github.com/khrome/voxel-async-simulation/blob/master/example-client.js) until there are more docs. Make sure to either change the client or to name your texturePack `'PhotoRealistic'` so you can use the client with the textures you are about to download.
-
-Speaking of... go [Download a Minecraft texture pack](https://www.planetminecraft.com/resources/texture_packs/) then unpack it and put your textures in a folder at the root called `texture-packs`. If you want you can also drop a `player.png` minecraft skin in the root directory so your avatar is textured.
+Client
+------
+Next make a client that will connect to your chunkserver
+```javascript
+    var client = new VoxelSimulation.Client({
+        texturePack : 'freeture', //assumes a minecraft-like directory layout
+        container : document.body,
+        weatherCycle : [
+            'clear', 'cloudy', 'sprinkle', 'rain', 'stormy', 'rain',
+            'sprinkle', 'cloudy', 'clear', 'clear', 'clear', 'clear'
+        ],
+        quality : 1, //1, 2 or 3 where 1 is lowest quality
+        save : true
+    });
+    return client;
+```
+Running it
+----------
 
 Now let's build the app(with browserify):
 

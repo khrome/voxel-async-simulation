@@ -24,6 +24,7 @@
         "express": "*",
         "extend": "*",
         "extended-emitter": "^1.0.2",
+        "is-electron": "^2.1.0",
         "primes": "0.0.1",
         "uuid": "*",
         "voxel": "*",
