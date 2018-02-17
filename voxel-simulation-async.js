@@ -10,42 +10,6 @@ var Generator = require('voxel-generators');
 var uuid = require('uuid');
 var isElectron = require('is-electron');
 
-// This is super shitty, but so is tossing the chunk *before* the event
-createGame.prototype.removeFarChunks = function(playerPosition) {
-  var self = this
-  playerPosition = playerPosition || this.playerPosition()
-  var nearbyChunks = this.voxels.nearbyChunks(playerPosition, this.removeDistance).map(function(chunkPos) {
-    return chunkPos.join('|')
-  })
-  Object.keys(self.voxels.chunks).map(function(chunkIndex) {
-    if (nearbyChunks.indexOf(chunkIndex) > -1) return
-    var chunk = self.voxels.chunks[chunkIndex]
-    var mesh = self.voxels.meshes[chunkIndex]
-    var pendingIndex = self.pendingChunks.indexOf(chunkIndex)
-    if (pendingIndex !== -1) self.pendingChunks.splice(pendingIndex, 1)
-    if (!chunk) return;
-    var chunkPosition = chunk.position
-    if (mesh) {
-      if (mesh.surfaceMesh) {
-        self.scene.remove(mesh.surfaceMesh)
-        mesh.surfaceMesh.geometry.dispose()
-      }
-      if (mesh.wireMesh) {
-        mesh.wireMesh.geometry.dispose()
-        self.scene.remove(mesh.wireMesh)
-      }
-      delete mesh.data
-      delete mesh.geometry
-      delete mesh.meshed
-      delete mesh.surfaceMesh
-      delete mesh.wireMesh
-    }
-    delete self.voxels.chunks[chunkIndex]
-    self.emit('removeChunk', chunk);
-  })
-  self.voxels.requestMissingChunks(playerPosition)
-}
-
 //var random = require('seedable-random');
 //var skmeans = require("skmeans");
 var Emitter = require("extended-emitter");
@@ -260,10 +224,11 @@ VoxelSimulation.prototype.deselect = function(){
 }
 
 VoxelSimulation.prototype.createWorld = function(options, cb){
+    console.log('OPT', options)
     var ob = this;
     var chunkCache = {};
     this.initizationOptions(function(err, initOptions){
-        var chunkDistance = options.quality?(options.quality+1):
+        var chunkDistance = options.quality?Math.max(options.quality, 2):
             (options.chunkDistance || 2);
         var game = createGame({
           generateVoxelChunk: function(low, high, x, y, z) {
