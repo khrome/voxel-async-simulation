@@ -71,12 +71,13 @@ function VoxelSimulation(options){
     var ob = this;
     this.options = options || {};
     (new Emitter()).onto(this);
+    var domain = options.domain || '.';
     if(!this.options.seed) this.options.seed = uuid.v1();
 
     //if(!this.options.texturePack) throw Error()
     this.lookupMaterials = this.options.lookupMaterials ||
         VoxelSimulation.lookupMaterials;
-    options.texturePath = './texture-packs/'+
+    options.texturePath = domain+'/texture-packs/'+
         this.options.texturePack+
         '/assets/minecraft/textures/blocks/';
     if(!options.delayedBuild) this.build(function(){ });
@@ -230,7 +231,7 @@ VoxelSimulation.prototype.createWorld = function(options, cb){
     this.initizationOptions(function(err, initOptions){
         var chunkDistance = options.quality?Math.max(options.quality, 2):
             (options.chunkDistance || 2);
-        var game = createGame({
+        var gameOptions = {
           generateVoxelChunk: function(low, high, x, y, z) {
               var key = [x,y,z].join('|');
               var chunk = chunkCache[key];
@@ -259,7 +260,9 @@ VoxelSimulation.prototype.createWorld = function(options, cb){
           skyColor: options.skyColor|| 0x6666CC,
           lightsDisabled: (options.quality && options.quality == 1)?false:true,
           controls: { discreteFire: true }
-        });
+        }
+        console.log('CREATE WORLD', gameOptions);
+        var game = createGame(gameOptions);
         ob.on('recieve-chunk', function(chunk){
 
             chunkCache[chunk.key] = { //overwrite the old, empty dummy
@@ -308,11 +311,13 @@ VoxelSimulation.prototype.initizationOptions = function(cb){
 
 VoxelSimulation.Client = function(options){
     if(!options) options = {};
+    console.log('@@', options);
     var request = require('browser-request');
     var thisSim;
+    var domain = options.domain || '.';
 
     if(!options.chunkLoader) options.chunkLoader = function(placeholderChunk, complete){
-        var url = '/chunk/'+thisSim.options.seed+'/'+
+        var url = domain+'/chunk/'+thisSim.options.seed+'/'+
             placeholderChunk.position[0]+'/'+
             placeholderChunk.position[1]+'/'+
             placeholderChunk.position[2];
@@ -337,7 +342,7 @@ VoxelSimulation.Client = function(options){
     };
 
     if(options.save === true && (!options.chunkSaver)) options.chunkSaver = function(chunk, complete){
-        var url = '/chunk/'+thisSim.options.seed+'/'+chunk.position[0]+'/'+
+        var url = domain+'/chunk/'+thisSim.options.seed+'/'+chunk.position[0]+'/'+
             chunk.position[1]+'/'+chunk.position[2];
         request({
             uri :url,
@@ -351,7 +356,7 @@ VoxelSimulation.Client = function(options){
     };
 
     if(!options.lookupMaterials) options.lookupMaterials = function(texturePack, cb){
-        var url = '/assets/'+texturePack+'/blocks';
+        var url = domain+'/assets/'+texturePack+'/blocks';
         request({
             uri :url,
             json : true

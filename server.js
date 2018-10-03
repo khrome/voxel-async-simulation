@@ -84,11 +84,25 @@ function generateSubmesh(x, y, z, subgenerator){
     return results;
 }
 
-var generatorRequestor;
+var generatorRequestor = function(worldName, callback){
+    var config = {
+        textures : 'freeture',
+        distribution : 'prime',
+        offsets : {
+            common : Math.floor(Math.random()*3),
+            uncommon : Math.floor(Math.random()*3),
+            rare : Math.floor(Math.random()*3)
+        }
+    };
+    getTextures(config.textures, function(err, pack){
+        var bldr = builder || WorldBuilder({texturePack : pack});
+        callback(undefined, config, pack, bldr);
+    });
+};
 app.get('/chunk/:world/:x/:y/:z', function(req, res){
-    var x = req.params.x;
-    var y = req.params.y;
-    var z = req.params.z;
+    var x = parseInt(req.params.x);
+    var y = parseInt(req.params.y);
+    var z = parseInt(req.params.z);
     var worldName = req.params.world;
     generatorRequestor(worldName, function(err, config, texturePack, builder){
         var distroFn;
@@ -100,15 +114,30 @@ app.get('/chunk/:world/:x/:y/:z', function(req, res){
             distroFn = WorldBuilder.Segmenters.modulo(parseInt(parts[0]));
         }
         var generator = builder.buildGenerator(distroFn);
+        //INTEGRATED
+        var name;
+        var makeSubmesh = function(x,y,z){
+            var submesh = generator.submesh(x, y, z);
+            var context = submesh.context();
+            return submesh.generate();
+        };
+        //COMPUTED
+        //var makeSubmesh = function(x,y,z){return generateSubmesh(x, y, z, generator)};
+
         if(storage){
             storage.loader(worldName, x, y, z, function(err, data){
                 if(err) throw err;
-                var results = data || generateSubmesh(x, y, z, generator);
-                res.end(JSON.stringify(results));
+                var results = data || makeSubmesh(x, y, z);
+                res.end(JSON.stringify({
+                    voxels:Array.prototype.slice.call(results)
+                }));
             });
         }else{
-            var results = generateSubmesh(x, y, z, generator);
-            res.end(JSON.stringify(results));
+            var results = makeSubmesh(x, y, z);
+            res.end(JSON.stringify({
+                voxels: Array.prototype.slice.call(results),
+                //biome:
+            }));
         }
     });
 });
@@ -125,13 +154,34 @@ app.post('/chunk/:world/:x/:y/:z', jsonParser, function(req, res){
 app.get('/assets/:texturePack/:type', function(req, res){
     var texturePack = req.params.texturePack;
     var type = req.params.type;
-    loadTexturePack('./texture-packs/'+texturePack, function(err, pack){
+    getTextures(texturePack, function(err, pack){
         res.end(JSON.stringify(pack.toTextureList().slice(1)));
     });
 });
 
+var root = '.';
+
+var getTextures = function(texturePack, cb){
+    if(textures){
+        setTimeout(function(){
+            cb(undefined, textures)
+        }, 0);
+    }else{
+        loadTexturePack(root+'/texture-packs/'+texturePack, function(err, pack){
+            cb(undefined, pack);
+        });
+    }
+};
+
+var textures;
+var builder;
+
 app.setGeneratorRequestor = function(requestor){
     generatorRequestor = requestor;
+};
+
+app.setRoot = function(path){
+    root = path;
 };
 
 app.setGenerator = function(generator){
@@ -139,6 +189,12 @@ app.setGenerator = function(generator){
 };
 app.setStorage = function(sto){
     storage = sto;
+};
+app.setBuilder = function(fn){
+    builder = fn;
+};
+app.setTexturePack = function(texturePack){
+    textures = texturePack;
 };
 
 module.exports = function(generator){
