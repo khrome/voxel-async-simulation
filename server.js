@@ -119,7 +119,7 @@ app.get('/chunk/:world/:x/:y/:z', function(req, res){
         var makeSubmesh = function(x,y,z){
             var submesh = generator.submesh(x, y, z);
             var context = submesh.context();
-            return submesh.generate();
+            return submesh;
         };
         //COMPUTED
         //var makeSubmesh = function(x,y,z){return generateSubmesh(x, y, z, generator)};
@@ -129,14 +129,15 @@ app.get('/chunk/:world/:x/:y/:z', function(req, res){
                 if(err) throw err;
                 var results = data || makeSubmesh(x, y, z);
                 res.end(JSON.stringify({
-                    voxels:Array.prototype.slice.call(results)
+                    voxels:Array.prototype.slice.call(results.generate()),
+                    biome: results.biome().name
                 }));
             });
         }else{
             var results = makeSubmesh(x, y, z);
             res.end(JSON.stringify({
-                voxels: Array.prototype.slice.call(results),
-                //biome:
+                voxels: Array.prototype.slice.call(results.generate()),
+                biome: results.biome().name
             }));
         }
     });
